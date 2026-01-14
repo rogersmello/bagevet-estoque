@@ -36,6 +36,9 @@ app.get("/", (req, res) => {
 body{font-family:Arial;padding:30px;}
 input,button{width:100%;padding:10px;margin-top:10px;}
 h1{color:#2b6cb0;}
+table{width:100%;border-collapse:collapse;}
+th,td{padding:6px;border-bottom:1px solid #ddd;}
+input{width:60px;}
 </style>
 </head>
 <body>
@@ -67,8 +70,9 @@ app.post("/login", (req, res) => {
 app.get("/estoque", (req, res) => {
   if (!logado) return res.redirect("/");
 
-  const totalQtd = estoque.reduce((s, p) => s + p.quantidade, 0);
-  const totalValor = estoque.reduce((s, p) => s + (p.quantidade * p.custo), 0);
+  const totalQtd = estoque.reduce(
+    (s, p) => s + p.ambulatorio + p.laboratorio + p.banheiro, 0
+  );
 
   res.send(`
 <!DOCTYPE html>
@@ -77,62 +81,50 @@ app.get("/estoque", (req, res) => {
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Bagévet - Estoque</title>
-<style>
-body{font-family:Arial;padding:15px;}
-h1{color:#2b6cb0;}
-table{width:100%;border-collapse:collapse;margin-top:10px;}
-th,td{padding:8px;border-bottom:1px solid #ddd;}
-input{width:80px;}
-.total{margin-top:15px;font-weight:bold;}
-form{margin-top:10px;}
-button{padding:6px 10px;}
-.actions{margin-top:10px;}
-a{display:block;margin-top:10px;}
-</style>
 </head>
 <body>
 
 <h1>Bagévet – Controle de Estoque</h1>
 
-<div class="total">
-Total de itens: ${totalQtd}<br>
-Valor total (opcional): R$ ${totalValor.toFixed(2)}
-</div>
+<p><b>Total geral de itens:</b> ${totalQtd}</p>
 
-<div class="actions">
-  <form method="GET" action="/export">
-    <button>Exportar para Excel</button>
-  </form>
-</div>
+<form method="GET" action="/export">
+<button>Exportar para Excel</button>
+</form>
 
-<!-- ADICIONAR PRODUTO -->
 <form method="POST" action="/add">
-  <input name="nome" placeholder="Nome do produto" required>
-  <button>Adicionar produto</button>
+<input name="nome" placeholder="Nome do produto" required>
+<button>Adicionar produto</button>
 </form>
 
 <table>
 <tr>
 <th>Produto</th>
-<th>Quantidade</th>
-<th>Custo</th>
+<th>Amb</th>
+<th>Lab</th>
+<th>Ban</th>
 <th>Total</th>
+<th>Custo</th>
 <th>Ação</th>
 </tr>
 
 ${estoque.map((p, i) => `
 <tr>
 <td>${p.nome}</td>
-<td><input type="number" value="${p.quantidade}"
-onchange="atualizar(${i}, this.value, ${p.custo})"></td>
+<td><input type="number" value="${p.ambulatorio}"
+onchange="atualizar(${i}, this.value, ${p.laboratorio}, ${p.banheiro}, ${p.custo})"></td>
+<td><input type="number" value="${p.laboratorio}"
+onchange="atualizar(${i}, ${p.ambulatorio}, this.value, ${p.banheiro}, ${p.custo})"></td>
+<td><input type="number" value="${p.banheiro}"
+onchange="atualizar(${i}, ${p.ambulatorio}, ${p.laboratorio}, this.value, ${p.custo})"></td>
+<td>${p.ambulatorio + p.laboratorio + p.banheiro}</td>
 <td><input type="number" value="${p.custo}"
-onchange="atualizar(${i}, ${p.quantidade}, this.value)"></td>
-<td>R$ ${(p.quantidade * p.custo).toFixed(2)}</td>
+onchange="atualizar(${i}, ${p.ambulatorio}, ${p.laboratorio}, ${p.banheiro}, this.value)"></td>
 <td>
-  <form method="POST" action="/remove" onsubmit="return confirm('Remover este produto?')">
-    <input type="hidden" name="index" value="${i}">
-    <button>Remover</button>
-  </form>
+<form method="POST" action="/remove" onsubmit="return confirm('Remover produto?')">
+<input type="hidden" name="index" value="${i}">
+<button>Remover</button>
+</form>
 </td>
 </tr>
 `).join("")}
@@ -141,11 +133,17 @@ onchange="atualizar(${i}, ${p.quantidade}, this.value)"></td>
 <a href="/logout">Sair</a>
 
 <script>
-function atualizar(index, quantidade, custo) {
+function atualizar(index, amb, lab, ban, custo) {
   fetch('/estoque', {
     method:'POST',
     headers:{'Content-Type':'application/json'},
-    body:JSON.stringify({index,quantidade,custo})
+    body:JSON.stringify({
+      index,
+      ambulatorio: amb,
+      laboratorio: lab,
+      banheiro: ban,
+      custo
+    })
   }).then(()=>location.reload());
 }
 </script>
@@ -155,44 +153,45 @@ function atualizar(index, quantidade, custo) {
   `);
 });
 
-// ===== ADICIONAR PRODUTO =====
+// ===== ADD =====
 app.post("/add", (req, res) => {
-  estoque.push({ nome: req.body.nome, quantidade: 0, custo: 0 });
+  estoque.push({
+    nome: req.body.nome,
+    ambulatorio: 0,
+    laboratorio: 0,
+    banheiro: 0,
+    custo: 0
+  });
   salvar();
   res.redirect("/estoque");
 });
 
-// ===== ATUALIZAR =====
+// ===== UPDATE =====
 app.post("/estoque", (req, res) => {
-  const { index, quantidade, custo } = req.body;
-  estoque[index].quantidade = Number(quantidade);
-  estoque[index].custo = Number(custo);
+  const p = estoque[req.body.index];
+  p.ambulatorio = Number(req.body.ambulatorio);
+  p.laboratorio = Number(req.body.laboratorio);
+  p.banheiro = Number(req.body.banheiro);
+  p.custo = Number(req.body.custo);
   salvar();
   res.json({ ok: true });
 });
 
-// ===== REMOVER =====
+// ===== REMOVE =====
 app.post("/remove", (req, res) => {
   estoque.splice(Number(req.body.index), 1);
   salvar();
   res.redirect("/estoque");
 });
 
-// ===== EXPORTAR =====
+// ===== EXPORT =====
 app.get("/export", (req, res) => {
-  let csv = "Produto;Quantidade;Custo;Total\n";
-
-  let totalQtd = 0;
-  let totalValor = 0;
+  let csv = "Produto;Ambulatório;Laboratório;Banheiro;Total;Custo\n";
 
   estoque.forEach(p => {
-    const total = p.quantidade * p.custo;
-    totalQtd += p.quantidade;
-    totalValor += total;
-    csv += `${p.nome};${p.quantidade};${p.custo};${total}\n`;
+    const total = p.ambulatorio + p.laboratorio + p.banheiro;
+    csv += `${p.nome};${p.ambulatorio};${p.laboratorio};${p.banheiro};${total};${p.custo}\n`;
   });
-
-  csv += `\nTOTAL;${totalQtd};;${totalValor}`;
 
   res.setHeader("Content-Type", "text/csv");
   res.setHeader("Content-Disposition", "attachment; filename=estoque-bagevet.csv");
