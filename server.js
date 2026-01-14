@@ -11,23 +11,19 @@ const PASS = "1234";
 let logado = false;
 const FILE = "estoque.json";
 
-// CARREGA ESTOQUE DO ARQUIVO
+// ===== CARREGA ESTOQUE =====
 let estoque = [];
 if (fs.existsSync(FILE)) {
   estoque = JSON.parse(fs.readFileSync(FILE));
 } else {
-  estoque = [
-    { nome: "Produto A", quantidade: 0, custo: 0 },
-    { nome: "Produto B", quantidade: 0, custo: 0 }
-  ];
+  estoque = [];
 }
 
-// SALVA ESTOQUE
 function salvar() {
   fs.writeFileSync(FILE, JSON.stringify(estoque, null, 2));
 }
 
-// LOGIN
+// ===== LOGIN =====
 app.get("/", (req, res) => {
   if (logado) return res.redirect("/estoque");
 
@@ -69,7 +65,7 @@ app.post("/login", (req, res) => {
   }
 });
 
-// ESTOQUE
+// ===== ESTOQUE =====
 app.get("/estoque", (req, res) => {
   if (!logado) return res.redirect("/");
 
@@ -90,6 +86,8 @@ table{width:100%;border-collapse:collapse;margin-top:10px;}
 th,td{padding:8px;border-bottom:1px solid #ddd;}
 input{width:80px;}
 .total{margin-top:15px;font-weight:bold;}
+form{margin-top:15px;}
+button{padding:8px 12px;}
 a{display:block;margin-top:10px;}
 </style>
 </head>
@@ -101,6 +99,12 @@ a{display:block;margin-top:10px;}
 Total de itens: ${totalQtd}<br>
 Valor total (opcional): R$ ${totalValor.toFixed(2)}
 </div>
+
+<!-- ADICIONAR PRODUTO -->
+<form method="POST" action="/add">
+  <input name="nome" placeholder="Nome do produto" required>
+  <button>Adicionar produto</button>
+</form>
 
 <table>
 <tr>
@@ -137,6 +141,18 @@ function atualizar(index, quantidade, custo) {
   `);
 });
 
+// ===== ADICIONAR PRODUTO =====
+app.post("/add", (req, res) => {
+  estoque.push({
+    nome: req.body.nome,
+    quantidade: 0,
+    custo: 0
+  });
+  salvar();
+  res.redirect("/estoque");
+});
+
+// ===== ATUALIZAR ESTOQUE =====
 app.post("/estoque", (req, res) => {
   const { index, quantidade, custo } = req.body;
   estoque[index].quantidade = Number(quantidade);
@@ -145,6 +161,7 @@ app.post("/estoque", (req, res) => {
   res.json({ ok: true });
 });
 
+// ===== LOGOUT =====
 app.get("/logout", (req, res) => {
   logado = false;
   res.redirect("/");
