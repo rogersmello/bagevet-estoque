@@ -15,8 +15,6 @@ const FILE = "estoque.json";
 let estoque = [];
 if (fs.existsSync(FILE)) {
   estoque = JSON.parse(fs.readFileSync(FILE));
-} else {
-  estoque = [];
 }
 
 function salvar() {
@@ -86,8 +84,9 @@ table{width:100%;border-collapse:collapse;margin-top:10px;}
 th,td{padding:8px;border-bottom:1px solid #ddd;}
 input{width:80px;}
 .total{margin-top:15px;font-weight:bold;}
-form{margin-top:15px;}
+form{margin-top:10px;}
 button{padding:6px 10px;}
+.actions{margin-top:10px;}
 a{display:block;margin-top:10px;}
 </style>
 </head>
@@ -98,6 +97,12 @@ a{display:block;margin-top:10px;}
 <div class="total">
 Total de itens: ${totalQtd}<br>
 Valor total (opcional): R$ ${totalValor.toFixed(2)}
+</div>
+
+<div class="actions">
+  <form method="GET" action="/export">
+    <button>Exportar para Excel</button>
+  </form>
 </div>
 
 <!-- ADICIONAR PRODUTO -->
@@ -111,6 +116,7 @@ Valor total (opcional): R$ ${totalValor.toFixed(2)}
 <th>Produto</th>
 <th>Quantidade</th>
 <th>Custo</th>
+<th>Total</th>
 <th>Ação</th>
 </tr>
 
@@ -121,6 +127,7 @@ ${estoque.map((p, i) => `
 onchange="atualizar(${i}, this.value, ${p.custo})"></td>
 <td><input type="number" value="${p.custo}"
 onchange="atualizar(${i}, ${p.quantidade}, this.value)"></td>
+<td>R$ ${(p.quantidade * p.custo).toFixed(2)}</td>
 <td>
   <form method="POST" action="/remove" onsubmit="return confirm('Remover este produto?')">
     <input type="hidden" name="index" value="${i}">
@@ -150,16 +157,12 @@ function atualizar(index, quantidade, custo) {
 
 // ===== ADICIONAR PRODUTO =====
 app.post("/add", (req, res) => {
-  estoque.push({
-    nome: req.body.nome,
-    quantidade: 0,
-    custo: 0
-  });
+  estoque.push({ nome: req.body.nome, quantidade: 0, custo: 0 });
   salvar();
   res.redirect("/estoque");
 });
 
-// ===== ATUALIZAR ESTOQUE =====
+// ===== ATUALIZAR =====
 app.post("/estoque", (req, res) => {
   const { index, quantidade, custo } = req.body;
   estoque[index].quantidade = Number(quantidade);
@@ -168,12 +171,32 @@ app.post("/estoque", (req, res) => {
   res.json({ ok: true });
 });
 
-// ===== REMOVER PRODUTO =====
+// ===== REMOVER =====
 app.post("/remove", (req, res) => {
-  const index = Number(req.body.index);
-  estoque.splice(index, 1);
+  estoque.splice(Number(req.body.index), 1);
   salvar();
   res.redirect("/estoque");
+});
+
+// ===== EXPORTAR =====
+app.get("/export", (req, res) => {
+  let csv = "Produto;Quantidade;Custo;Total\n";
+
+  let totalQtd = 0;
+  let totalValor = 0;
+
+  estoque.forEach(p => {
+    const total = p.quantidade * p.custo;
+    totalQtd += p.quantidade;
+    totalValor += total;
+    csv += `${p.nome};${p.quantidade};${p.custo};${total}\n`;
+  });
+
+  csv += `\nTOTAL;${totalQtd};;${totalValor}`;
+
+  res.setHeader("Content-Type", "text/csv");
+  res.setHeader("Content-Disposition", "attachment; filename=estoque-bagevet.csv");
+  res.send(csv);
 });
 
 // ===== LOGOUT =====
