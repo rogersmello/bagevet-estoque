@@ -9,6 +9,10 @@ let estoque = [
 ];
 
 app.get("/", (req, res) => {
+
+  const totalQtd = estoque.reduce((s, p) => s + p.quantidade, 0);
+  const totalValor = estoque.reduce((s, p) => s + (p.quantidade * p.custo), 0);
+
   res.send(`
 <!DOCTYPE html>
 <html>
@@ -19,14 +23,20 @@ app.get("/", (req, res) => {
   <style>
     body { font-family: Arial; padding: 15px; }
     h1 { color: #2b6cb0; }
-    table { width: 100%; border-collapse: collapse; }
+    table { width: 100%; border-collapse: collapse; margin-top: 10px; }
     th, td { padding: 8px; border-bottom: 1px solid #ddd; }
     input { width: 80px; }
+    .total { margin-top: 15px; font-weight: bold; }
   </style>
 </head>
 <body>
 
 <h1>Bagévet – Controle de Estoque</h1>
+
+<div class="total">
+  Total de itens: ${totalQtd}<br>
+  Valor total (opcional): R$ ${totalValor.toFixed(2)}
+</div>
 
 <table>
   <tr>
@@ -39,11 +49,11 @@ app.get("/", (req, res) => {
     <tr>
       <td>${p.nome}</td>
       <td>
-        <input type="number" value="${p.quantidade}" 
+        <input type="number" value="${p.quantidade}"
         onchange="atualizar(${i}, this.value, ${p.custo})">
       </td>
       <td>
-        <input type="number" value="${p.custo}" 
+        <input type="number" value="${p.custo}"
         onchange="atualizar(${i}, ${p.quantidade}, this.value)">
       </td>
     </tr>
@@ -59,7 +69,7 @@ function atualizar(index, quantidade, custo) {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(estoque)
-  });
+  }).then(() => location.reload());
 }
 </script>
 
