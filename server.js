@@ -87,7 +87,7 @@ th,td{padding:8px;border-bottom:1px solid #ddd;}
 input{width:80px;}
 .total{margin-top:15px;font-weight:bold;}
 form{margin-top:15px;}
-button{padding:8px 12px;}
+button{padding:6px 10px;}
 a{display:block;margin-top:10px;}
 </style>
 </head>
@@ -111,6 +111,7 @@ Valor total (opcional): R$ ${totalValor.toFixed(2)}
 <th>Produto</th>
 <th>Quantidade</th>
 <th>Custo</th>
+<th>Ação</th>
 </tr>
 
 ${estoque.map((p, i) => `
@@ -120,6 +121,12 @@ ${estoque.map((p, i) => `
 onchange="atualizar(${i}, this.value, ${p.custo})"></td>
 <td><input type="number" value="${p.custo}"
 onchange="atualizar(${i}, ${p.quantidade}, this.value)"></td>
+<td>
+  <form method="POST" action="/remove" onsubmit="return confirm('Remover este produto?')">
+    <input type="hidden" name="index" value="${i}">
+    <button>Remover</button>
+  </form>
+</td>
 </tr>
 `).join("")}
 </table>
@@ -159,6 +166,14 @@ app.post("/estoque", (req, res) => {
   estoque[index].custo = Number(custo);
   salvar();
   res.json({ ok: true });
+});
+
+// ===== REMOVER PRODUTO =====
+app.post("/remove", (req, res) => {
+  const index = Number(req.body.index);
+  estoque.splice(index, 1);
+  salvar();
+  res.redirect("/estoque");
 });
 
 // ===== LOGOUT =====
