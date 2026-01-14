@@ -4,7 +4,7 @@ const app = express();
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
-
+app.use(express.static("public"));
 const USER = "bagevet";
 const PASS = "1234";
 let logado = false;
@@ -35,7 +35,7 @@ button{background:#2b6cb0;color:#fff;border:none;border-radius:5px;}
 <body>
 
 <div class="card">
-<img src="https://via.placeholder.com/180x60?text=Bagévet">
+<img src="/logo.png" style="max-width:180px;">
 <h3>Controle de Estoque</h3>
 <form method="POST" action="/login">
 <input name="user" placeholder="Usuário">
