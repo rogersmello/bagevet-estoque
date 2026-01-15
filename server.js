@@ -43,7 +43,7 @@ button{background:#2b6cb0;color:#fff;border:none;border-radius:5px;}
 <body>
 
 <div class="card">
-  <img src="/logo.png" style="max-width:180px;">
+  <img src="/public/logo.png" style="max-width:180px;">
   <h3 style="text-align:center;">Controle de Estoque</h3>
 
   <form method="POST" action="/login">
