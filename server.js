@@ -1,190 +1,155 @@
 const express = require("express");
 const fs = require("fs");
-const app = express();
+const path = require("path");
 
+const app = express();
+const PORT = process.env.PORT || 3000;
+
+// Middleware
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+
+// Arquivos estáticos (logo, css, etc)
 app.use(express.static("public"));
 
-const USER = "bagevet";
-const PASS = "1234";
+// Arquivo de dados
+const DATA_FILE = path.join(__dirname, "estoque.json");
 
-let logado = false;
-const FILE = "estoque.json";
-
-// ===== CARREGAR ESTOQUE =====
-let estoque = [];
-if (fs.existsSync(FILE)) {
-  estoque = JSON.parse(fs.readFileSync(FILE));
+// Se não existir, cria o arquivo
+if (!fs.existsSync(DATA_FILE)) {
+  fs.writeFileSync(DATA_FILE, JSON.stringify([]));
 }
 
-function salvar() {
-  fs.writeFileSync(FILE, JSON.stringify(estoque, null, 2));
-}
-
-// ===== LOGIN =====
+// ===== LOGIN SIMPLES =====
 app.get("/", (req, res) => {
-  if (logado) return res.redirect("/estoque");
-
   res.send(`
-<!DOCTYPE html>
-<html>
-<head>
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Bagévet - Login</title>
-<style>
-body{font-family:Arial;background:#f4f6f8;padding:30px;}
-.card{max-width:400px;margin:auto;background:#fff;padding:25px;border-radius:8px;box-shadow:0 2px 6px rgba(0,0,0,.1);}
-img{display:block;margin:auto;}
-input,button{width:100%;padding:12px;margin-top:12px;}
-button{background:#2b6cb0;color:#fff;border:none;border-radius:5px;}
-</style>
-</head>
-<body>
-
-<div class="card">
-  <img src="/public/logo.png" style="max-width:180px;">
-  <h3 style="text-align:center;">Controle de Estoque</h3>
-
-  <form method="POST" action="/login">
-    <input name="user" placeholder="Usuário">
-    <input type="password" name="pass" placeholder="Senha">
-    <button>Entrar</button>
-  </form>
-</div>
-
-</body>
-</html>
-`);
+    <html>
+      <head>
+        <title>Bagévet - Login</title>
+        <style>
+          body { font-family: Arial; text-align:center; padding-top:40px; }
+          input { padding:8px; margin:5px; }
+          button { padding:8px 16px; }
+        </style>
+      </head>
+      <body>
+        <img src="/logo.png" style="max-width:180px;"><br><br>
+        <h2>Controle de Estoque</h2>
+        <form action="/estoque" method="get">
+          <input type="text" placeholder="Usuário" required><br>
+          <input type="password" placeholder="Senha" required><br>
+          <button type="submit">Entrar</button>
+        </form>
+      </body>
+    </html>
+  `);
 });
 
-app.post("/login", (req, res) => {
-  if (req.body.user === USER && req.body.pass === PASS) {
-    logado = true;
-    res.redirect("/estoque");
-  } else {
-    res.send("Usuário ou senha inválidos");
-  }
-});
-
-// ===== ESTOQUE =====
+// ===== TELA DE ESTOQUE =====
 app.get("/estoque", (req, res) => {
-  if (!logado) return res.redirect("/");
+  const dados = JSON.parse(fs.readFileSync(DATA_FILE));
+
+  let linhas = dados.map((p, i) => `
+    <tr>
+      <td>${p.nome}</td>
+      <td><input type="number" value="${p.amb}" onchange="atualizar(${i}, 'amb', this.value)"></td>
+      <td><input type="number" value="${p.lab}" onchange="atualizar(${i}, 'lab', this.value)"></td>
+      <td><input type="number" value="${p.ban}" onchange="atualizar(${i}, 'ban', this.value)"></td>
+      <td>${p.amb + p.lab + p.ban}</td>
+      <td><button onclick="remover(${i})">X</button></td>
+    </tr>
+  `).join("");
 
   res.send(`
-<!DOCTYPE html>
-<html>
-<head>
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Bagévet - Estoque</title>
-<style>
-body{font-family:Arial;background:#f4f6f8;padding:10px;}
-header{text-align:center;margin-bottom:10px;}
-table{width:100%;background:#fff;border-radius:6px;overflow:hidden;}
-th,td{padding:8px;border-bottom:1px solid #eee;text-align:center;}
-th{background:#edf2f7;}
-input{width:60px;padding:6px;border-radius:4px;border:1px solid #ccc;}
+    <html>
+      <head>
+        <title>Bagévet - Estoque</title>
+        <style>
+          body { font-family: Arial; padding:20px; }
+          table { width:100%; border-collapse:collapse; }
+          th, td { border:1px solid #ccc; padding:6px; text-align:center; }
+          th { background:#eee; }
+          th.amb { background:#d0ebff; }
+          th.lab { background:#d3f9d8; }
+          th.ban { background:#fff3bf; }
+          input { width:60px; }
+        </style>
+      </head>
+      <body>
+        <img src="/logo.png" style="max-width:140px; display:block; margin:auto;">
+        <h2 style="text-align:center;">Controle de Estoque</h2>
 
-img{display:block;margin:auto;}
+        <input id="nome" placeholder="Novo produto">
+        <button onclick="adicionar()">Adicionar</button>
 
-.amb{background:#e6f0ff;}
-.lab{background:#e6fffa;}
-.ban{background:#fff9db;}
+        <table>
+          <tr>
+            <th>Produto</th>
+            <th class="amb">Amb</th>
+            <th class="lab">Lab</th>
+            <th class="ban">Ban</th>
+            <th>Total</th>
+            <th>Ação</th>
+          </tr>
+          ${linhas}
+        </table>
 
-button{padding:6px 10px;border:none;border-radius:4px;}
-.export{background:#2f855a;color:#fff;}
-.remove{background:#c53030;color:#fff;}
-.add{background:#2b6cb0;color:#fff;}
-</style>
-</head>
-<body>
+        <br><a href="/">Sair</a>
 
-<header>
-  <img src="/logo.png" style="max-width:180px;margin-bottom:10px;">
-  <h3>Controle de Estoque</h3>
-</header>
+        <script>
+          function adicionar() {
+            fetch('/add', {
+              method: 'POST',
+              headers: {'Content-Type':'application/json'},
+              body: JSON.stringify({ nome: document.getElementById('nome').value })
+            }).then(() => location.reload());
+          }
 
-<form method="GET" action="/export">
-  <button class="export">Exportar para Excel</button>
-</form>
+          function atualizar(i, campo, valor) {
+            fetch('/update', {
+              method: 'POST',
+              headers: {'Content-Type':'application/json'},
+              body: JSON.stringify({ i, campo, valor })
+            });
+          }
 
-<form method="POST" action="/add" style="margin:10px 0;">
-  <input name="nome" placeholder="Novo produto" required>
-  <button class="add">Adicionar</button>
-</form>
-
-<table>
-<tr>
-  <th>Produto</th>
-  <th class="amb">Amb</th>
-  <th class="lab">Lab</th>
-  <th class="ban">Ban</th>
-  <th>Total</th>
-  <th>Ação</th>
-</tr>
-
-${estoque.map((p,i)=>`
-<tr>
-  <td>${p.nome}</td>
-  <td class="amb"><input type="number" value="${p.ambulatorio}"
-    onchange="u(${i},this.value,${p.laboratorio},${p.banheiro})"></td>
-  <td class="lab"><input type="number" value="${p.laboratorio}"
-    onchange="u(${i},${p.ambulatorio},this.value,${p.banheiro})"></td>
-  <td class="ban"><input type="number" value="${p.banheiro}"
-    onchange="u(${i},${p.ambulatorio},${p.laboratorio},this.value)"></td>
-  <td><b>${p.ambulatorio+p.laboratorio+p.banheiro}</b></td>
-  <td>
-    <form method="POST" action="/remove">
-      <input type="hidden" name="index" value="${i}">
-      <button class="remove">X</button>
-    </form>
-  </td>
-</tr>
-`).join("")}
-
-</table>
-
-<a href="/logout">Sair</a>
-
-<script>
-function u(i,a,l,b){
-  fetch('/estoque',{
-    method:'POST',
-    headers:{'Content-Type':'application/json'},
-    body:JSON.stringify({index:i,ambulatorio:a,laboratorio:l,banheiro:b})
-  }).then(()=>location.reload());
-}
-</script>
-
-</body>
-</html>
-`);
+          function remover(i) {
+            fetch('/delete', {
+              method: 'POST',
+              headers: {'Content-Type':'application/json'},
+              body: JSON.stringify({ i })
+            }).then(() => location.reload());
+          }
+        </script>
+      </body>
+    </html>
+  `);
 });
 
-// ===== AÇÕES =====
-app.post("/add",(req,res)=>{
-  estoque.push({nome:req.body.nome,ambulatorio:0,laboratorio:0,banheiro:0});
-  salvar();
-  res.redirect("/estoque");
+// ===== ROTAS API =====
+app.post("/add", (req, res) => {
+  const dados = JSON.parse(fs.readFileSync(DATA_FILE));
+  dados.push({ nome: req.body.nome, amb: 0, lab: 0, ban: 0 });
+  fs.writeFileSync(DATA_FILE, JSON.stringify(dados));
+  res.sendStatus(200);
 });
 
-app.post("/estoque",(req,res)=>{
-  const p = estoque[req.body.index];
-  p.ambulatorio = Number(req.body.ambulatorio);
-  p.laboratorio = Number(req.body.laboratorio);
-  p.banheiro = Number(req.body.banheiro);
-  salvar();
-  res.json({ok:true});
+app.post("/update", (req, res) => {
+  const dados = JSON.parse(fs.readFileSync(DATA_FILE));
+  dados[req.body.i][req.body.campo] = Number(req.body.valor);
+  fs.writeFileSync(DATA_FILE, JSON.stringify(dados));
+  res.sendStatus(200);
 });
 
-app.post("/remove",(req,res)=>{
-  estoque.splice(req.body.index,1);
-  salvar();
-  res.redirect("/estoque");
+app.post("/delete", (req, res) => {
+  const dados = JSON.parse(fs.readFileSync(DATA_FILE));
+  dados.splice(req.body.i, 1);
+  fs.writeFileSync(DATA_FILE, JSON.stringify(dados));
+  res.sendStatus(200);
 });
 
-app.get("/export",(req,res)=>{
-  let csv="Produto;Amb;Lab;Ban;Total\n";
-  estoque.forEach(p=>{
-    const t=p.ambulatorio+p.laboratorio+p.banheiro;
-    csv+=`${p.nome};${p.ambulatorio};${p.laboratorio};${p.banheiro};${t}\n
+// ===== START =====
+app.listen(PORT, () => {
+  console.log("Servidor rodando na porta " + PORT);
+});
+
