@@ -147,6 +147,19 @@ app.post("/delete", (req, res) => {
   fs.writeFileSync(DATA_FILE, JSON.stringify(dados));
   res.sendStatus(200);
 });
+app.post('/reset-estoque', async (req, res) => {
+  const { error } = await supabase
+    .from('produtos')
+    .update({ amb: 0, lab: 0, ban: 0 })
+    .neq('id', 0);
+
+  if (error) {
+    return res.status(500).json({ error: error.message });
+  }
+
+  res.json({ success: true });
+});
+
 
 // ===== START =====
 app.listen(PORT, () => {
