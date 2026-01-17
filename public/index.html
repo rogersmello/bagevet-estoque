@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <title>Controle de Estoque</title>
+
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      padding: 20px;
+    }
+
+    table {
+      border-collapse: collapse;
+      width: 100%;
+      margin-top: 10px;
+    }
+
+    th, td {
+      border: 1px solid #ccc;
+      padding: 6px;
+      text-align: center;
+    }
+
+    input {
+      width: 60px;
+      text-align: center;
+    }
+
+    .btn-reset {
+      background: #c62828;
+      color: white;
+      padding: 10px 16px;
+      border: none;
+      border-radius: 6px;
+      font-weight: bold;
+      cursor: pointer;
+      margin-bottom: 15px;
+    }
+
+    .btn-reset:hover {
+      background: #b71c1c;
+    }
+  </style>
+</head>
+
+<body>
+  <h1>Controle de Estoque</h1>
+
+  <button id="resetEstoque" class="btn-reset">
+    🔄 Zerar todo o estoque
+  </button>
+
+  <table>
+    <thead>
+      <tr>
+        <th>Produto</th>
+        <th>Amb</th>
+        <th>Lab</th>
+        <th>Ban</th>
+      </tr>
+    </thead>
+    <tbody id="tabela-produtos"></tbody>
+  </table>
+
+  <script>
+    async function carregarProdutos() {
+      const res = await fetch('/produtos');
+      const produtos = await res.json();
+
+      const tbody = document.getElementById('tabela-produtos');
+      tbody.innerHTML = '';
+
+      produtos.forEach(p => {
+        tbody.innerHTML += `
+          <tr>
+            <td>${p.nome}</td>
+            <td><input value="${p.amb}" /></td>
+            <td><input value="${p.lab}" /></td>
+            <td><input value="${p.ban}" /></td>
+          </tr>
+        `;
+      });
+    }
+
+    document.getElementById('resetEstoque').addEventListener('click', async () => {
+      const confirmar = confirm(
+        'Tem certeza que deseja zerar todo o estoque?\nEssa ação não pode ser desfeita.'
+      );
+
+      if (!confirmar) return;
+
+      const res = await fetch('/reset-estoque', { method: 'POST' });
+
+      if (res.ok) {
+        carregarProdutos();
+        alert('Estoque zerado com sucesso!');
+      } else {
+        alert('Erro ao zerar estoque');
+      }
+    });
+
+    carregarProdutos();
+  </script>
+</body>
+</html>
